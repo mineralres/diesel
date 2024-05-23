@@ -6,7 +6,7 @@ use crate::deserialize::{self, FromSql};
 use crate::pg::{Pg, PgTypeMetadata, PgValue};
 use crate::query_builder::bind_collector::ByteWrapper;
 use crate::serialize::{self, IsNull, Output, ToSql};
-use crate::sql_types::{Array, HasSqlType, Nullable};
+use crate::sql_types::{Array, HasSqlType, Json, Nullable};
 
 #[cfg(feature = "postgres_backend")]
 impl<T> HasSqlType<Array<T>> for Pg
@@ -18,6 +18,16 @@ where
             Ok(tpe) => PgTypeMetadata::new(tpe.array_oid, 0),
             c @ Err(_) => PgTypeMetadata(c),
         }
+    }
+}
+
+#[cfg(all(feature = "postgres_backend", feature = "serde_json"))]
+impl<T> FromSql<Json, Pg> for Vec<T>
+where
+    T: FromSql<Json, Pg> + serde::de::DeserializeOwned,
+{
+    fn from_sql(value: PgValue<'_>) -> deserialize::Result<Self> {
+        Ok(serde_json::from_slice::<Vec<T>>(value.as_bytes())?)
     }
 }
 
